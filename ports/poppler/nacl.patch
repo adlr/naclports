@@ -1,0 +1,302 @@
+diff --git a/configure b/configure
+index 81bf644..302c5e3 100755
+--- a/configure
++++ b/configure
+@@ -17712,7 +17712,7 @@ if test "x$GXX" = "xyes"; then
+       *-std=*)
+         ;;
+       *)
+-        CXXFLAGS="$CXXFLAGS -ansi"
++        CXXFLAGS="$CXXFLAGS"
+         ;;
+       esac
+     ;;
+diff --git a/cpp/Makefile.am b/cpp/Makefile.am
+index f381e58..35f67e4 100644
+--- a/cpp/Makefile.am
++++ b/cpp/Makefile.am
+@@ -5,8 +5,14 @@ INCLUDES =					\
+ 	$(libjpeg_includes)			\
+ 	$(libtiff_includes)			\
+ 	$(libjpeg2000_includes)			\
++	$(cairo_includes)			\
+ 	$(libpng_includes)
+ 
++if BUILD_CAIRO_OUTPUT
++cairo_includes =				\
++	$(CAIRO_CFLAGS)
++endif
++
+ if BUILD_LIBJPEG
+ libjpeg_includes = $(LIBJPEG_CFLAGS)
+ endif
+diff --git a/cpp/Makefile.in b/cpp/Makefile.in
+index 77b8af3..dd19e9a 100644
+--- a/cpp/Makefile.in
++++ b/cpp/Makefile.in
+@@ -491,8 +491,12 @@ INCLUDES = \
+ 	$(libjpeg_includes)			\
+ 	$(libtiff_includes)			\
+ 	$(libjpeg2000_includes)			\
++	$(cairo_includes)			\
+ 	$(libpng_includes)
+ 
++@BUILD_CAIRO_OUTPUT_TRUE@cairo_includes = \
++@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_CFLAGS)
++
+ @BUILD_LIBJPEG_TRUE@libjpeg_includes = $(LIBJPEG_CFLAGS)
+ @BUILD_LIBTIFF_TRUE@libtiff_includes = $(LIBTIFF_CFLAGS)
+ @BUILD_LIBOPENJPEG_TRUE@libjpeg2000_includes = $(LIBOPENJPEG_CFLAGS)
+diff --git a/cpp/poppler-document.cpp b/cpp/poppler-document.cpp
+index 1c24b47..6dde8b7 100644
+--- a/cpp/poppler-document.cpp
++++ b/cpp/poppler-document.cpp
+@@ -30,6 +30,7 @@
+ #include "ErrorCodes.h"
+ #include "GlobalParams.h"
+ #include "Outline.h"
++#include "CairoOutputDev.h"
+ 
+ #include <algorithm>
+ #include <iterator>
+@@ -42,6 +43,7 @@ unsigned int poppler::initer::count = 0U;
+ initer::initer()
+ {
+     if (!count) {
++      printf("making new globalparams\n");
+         globalParams = new GlobalParams();
+         setErrorCallback(detail::error_function, NULL);
+     }
+@@ -662,3 +664,65 @@ document* document::load_from_raw_data(const char *file_data,
+                                 owner_password, user_password);
+     return document_private::check_document(doc, 0);
+ }
++
++namespace poppler {
++SimpleDocument::SimpleDocument(const char* buf, size_t length)
++    : buf_copy_(new char[length]),
++      stream_(NULL), doc_(NULL), out_dev_(NULL), initer_(NULL) {
++  initer_ = new initer();
++  printf("about to do memcpy\n");
++  memcpy(buf_copy_, buf, length);
++  printf("memcpy done\n");
++  Object obj;
++  printf("about to do memstream\n");
++  stream_ = new MemStream(buf_copy_, 0, length, obj.initNull());
++  printf("about to do pdfdoc\n");
++  doc_ = new PDFDoc(stream_);
++  printf("about to do cairo out dev\n");
++  out_dev_ = new CairoOutputDev();
++  printf("about to do start doc on cairo\n");
++  out_dev_->startDoc(doc_);
++  printf("sipmle doc ctor done\n");
++}
++SimpleDocument::~SimpleDocument() {
++  printf("~smpledoc: %d\n", __LINE__);
++  delete out_dev_;
++  printf("~smpledoc: %d\n", __LINE__);
++  out_dev_ = NULL;
++  printf("~smpledoc: %d\n", __LINE__);
++  delete doc_;
++  printf("~smpledoc: %d\n", __LINE__);
++  doc_ = NULL;
++  printf("~smpledoc: %d\n", __LINE__);
++  //delete stream_;
++  printf("~smpledoc: %d\n", __LINE__);
++  stream_ = NULL;
++  printf("~smpledoc: %d\n", __LINE__);
++  delete[] buf_copy_;
++  printf("~smpledoc: %d\n", __LINE__);
++  buf_copy_ = NULL;
++  printf("~smpledoc: %d\n", __LINE__);
++  delete ((initer*)initer_);
++  printf("~smpledoc: %d\n", __LINE__);
++  initer_ = NULL;
++  printf("~smpledoc: %d\n", __LINE__);
++}
++void SimpleDocument::RenderPage(size_t page, bool printing, cairo_t* cairo) {
++  out_dev_->setCairo(cairo);
++  out_dev_->setPrinting(printing);
++
++  cairo_save(cairo);
++  doc_->displayPageSlice(out_dev_, page,
++                         72.0, 72.0,
++                         0, // rotate
++                         false, // media box
++                         true, // crop box
++                         printing,
++                         -1, -1, -1, -1);  // slice
++  cairo_restore(cairo);
++  out_dev_->setCairo(NULL);
++}
++//  MemStream* stream_;
++//  PDFDoc* doc_;
++//  CairoOutputDev* out_dev_;
++}  // namespace poppler
+diff --git a/cpp/poppler-document.h b/cpp/poppler-document.h
+index dfae398..c371530 100644
+--- a/cpp/poppler-document.h
++++ b/cpp/poppler-document.h
+@@ -19,9 +19,15 @@
+ #ifndef POPPLER_DOCUMENT_H
+ #define POPPLER_DOCUMENT_H
+ 
++#include <cairo.h>
++
+ #include "poppler-global.h"
+ #include "poppler-font.h"
+ 
++class PDFDoc;
++class CairoOutputDev;
++class MemStream;
++
+ namespace poppler
+ {
+ 
+@@ -99,6 +105,19 @@ private:
+     friend class document_private;
+ };
+ 
++class SimpleDocument {
++ public:
++  SimpleDocument(const char* buf, size_t length);
++  ~SimpleDocument();
++  void RenderPage(size_t page, bool printing, cairo_t* cairo);
++ private:
++  char* buf_copy_;
++  MemStream* stream_;
++  PDFDoc* doc_;
++  CairoOutputDev* out_dev_;
++  void* initer_;
++};
++
+ }
+ 
+ #endif
+diff --git a/cpp/tests/Makefile.in b/cpp/tests/Makefile.in
+index 2e4cab9..8aea355 100644
+--- a/cpp/tests/Makefile.in
++++ b/cpp/tests/Makefile.in
+@@ -249,7 +249,7 @@ LIBOPENJPEG_CFLAGS = @LIBOPENJPEG_CFLAGS@
+ LIBOPENJPEG_LIBS = @LIBOPENJPEG_LIBS@
+ LIBPNG_CFLAGS = @LIBPNG_CFLAGS@
+ LIBPNG_LIBS = @LIBPNG_LIBS@
+-LIBS = @LIBS@
++LIBS = @LIBS@ @CAIRO_LIBS@
+ LIBTIFF_CFLAGS = @LIBTIFF_CFLAGS@
+ LIBTIFF_CFLAGSS = @LIBTIFF_CFLAGSS@
+ LIBTIFF_LIBS = @LIBTIFF_LIBS@
+@@ -383,11 +383,16 @@ AM_LDFLAGS = @auto_import_flags@
+ INCLUDES = \
+ 	-I$(top_srcdir)				\
+ 	-I$(top_srcdir)/utils			\
++	$(cairo_includes)			\
+ 	-I$(top_srcdir)/cpp
+ 
++@BUILD_CAIRO_OUTPUT_TRUE@cairo_includes = \
++@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_CFLAGS)
++
+ LDADDS = \
+ 	$(top_builddir)/poppler/libpoppler.la	\
+-	$(top_builddir)/cpp/libpoppler-cpp.la
++	$(top_builddir)/cpp/libpoppler-cpp.la	\
++	$(top_builddir)/poppler/libpoppler-cairo.la
+ 
+ poppler_dump_SOURCES = \
+ 	$(top_srcdir)/utils/parseargs.cc	\
+diff --git a/goo/gfile.cc b/goo/gfile.cc
+index 44beddd..e85a094 100644
+--- a/goo/gfile.cc
++++ b/goo/gfile.cc
+@@ -806,8 +806,8 @@ void GDir::rewind() {
+ #elif defined(ACORN)
+ #elif defined(MACOS)
+ #else
+-  if (dir)
+-    rewinddir(dir);
++  //if (dir)
++  //  rewinddir(dir);
+ #ifdef VMS
+   needParent = strchr(path->getCString(), '[') != NULL;
+ #endif
+diff --git a/poppler/CairoOutputDev.cc b/poppler/CairoOutputDev.cc
+index 77bd245..6b295f2 100644
+--- a/poppler/CairoOutputDev.cc
++++ b/poppler/CairoOutputDev.cc
+@@ -161,10 +161,12 @@ CairoOutputDev::CairoOutputDev() {
+ 
+   // the SA parameter supposedly defaults to false, but Acrobat
+   // apparently hardwires it to true
++  printf("getting stroke adjust: 0x%zx\n", (size_t)globalParams);
+   stroke_adjust = globalParams->getStrokeAdjust();
+   align_stroke_coords = gFalse;
+   adjusted_stroke_width = gFalse;
+   xref = NULL;
++  printf("ctor done\n");
+ }
+ 
+ CairoOutputDev::~CairoOutputDev() {
+diff --git a/poppler/Lexer.cc b/poppler/Lexer.cc
+index c620529..17d8ca1 100644
+--- a/poppler/Lexer.cc
++++ b/poppler/Lexer.cc
+@@ -39,6 +39,10 @@
+ #include "Error.h"
+ #include "XRef.h"
+ 
++#ifndef LLONG_MAX
++#define LLONG_MAX __LONG_LONG_MAX__
++#endif
++
+ //------------------------------------------------------------------------
+ 
+ // A '1' in this array means the character is white space.  A '1' or
+diff --git a/poppler/Makefile.in b/poppler/Makefile.in
+index 56fdca1..79f78b1 100644
+--- a/poppler/Makefile.in
++++ b/poppler/Makefile.in
+@@ -533,7 +533,8 @@ win32_libs = @win32_libs@
+ @BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_CFLAGS)
+ 
+ @BUILD_CAIRO_OUTPUT_TRUE@cairo_libs = \
+-@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_LIBS)
++@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_LIBS) \
++@BUILD_CAIRO_OUTPUT_TRUE@	libpoppler-cairo.la
+ 
+ @BUILD_CAIRO_OUTPUT_TRUE@libpoppler_cairo_la_SOURCES = \
+ @BUILD_CAIRO_OUTPUT_TRUE@	CairoFontEngine.cc			\
+@@ -623,6 +624,7 @@ libpoppler_la_LIBADD = \
+ 	$(top_builddir)/fofi/libfofi.la		\
+ 	$(cms_libs)				\
+ 	$(splash_libs)				\
++	$(cairo_libs)				\
+ 	$(libtiff_libs)				\
+ 	$(libjpeg_libs)				\
+ 	$(libpng_libs)				\
+diff --git a/poppler/PDFDoc.cc b/poppler/PDFDoc.cc
+index c78d5ca..7c83593 100644
+--- a/poppler/PDFDoc.cc
++++ b/poppler/PDFDoc.cc
+@@ -78,6 +78,10 @@
+ #include "PDFDoc.h"
+ #include "Hints.h"
+ 
++#ifndef LLONG_MAX
++#define LLONG_MAX __LONG_LONG_MAX__
++#endif
++
+ #if MULTITHREADED
+ #  define pdfdocLocker()   MutexLocker locker(&mutex)
+ #else
+diff --git a/poppler/Parser.cc b/poppler/Parser.cc
+index a021994..63ce7af 100644
+--- a/poppler/Parser.cc
++++ b/poppler/Parser.cc
+@@ -31,6 +31,7 @@
+ #pragma implementation
+ #endif
+ 
++#include <limits.h>
+ #include <stddef.h>
+ #include "Object.h"
+ #include "Array.h"

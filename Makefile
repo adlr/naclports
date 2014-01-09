@@ -149,6 +149,7 @@ ALL_PORTS = \
      ports/pango \
      ports/physfs \
      ports/pixman \
+     ports/poppler \
      ports/protobuf \
      ports/python \
      ports/python_ppapi \
@@ -265,6 +266,7 @@ ifeq ($(LUA_NO_READLINE),)
 $(SENT)/ports/lua5.1: ports/readline
 $(SENT)/ports/lua5.2: ports/readline
 endif
+$(SENT)/ports/poppler: ports/fontconfig ports/cairo
 $(SENT)/ports/python: ports/readline ports/zlib
 $(SENT)/ports/python3: ports/readline ports/zlib
 $(SENT)/ports/ruby: ports/readline ports/zlib
@@ -369,6 +371,7 @@ openssl: ports/openssl ;
 pango: ports/pango ;
 physfs: ports/physfs ;
 pixman: ports/pixman ;
+poppler: ports/poppler ;
 png libpng: ports/libpng ;
 protobuf: ports/protobuf ;
 python: ports/python ;

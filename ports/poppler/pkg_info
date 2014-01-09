@@ -1,0 +1,3 @@
+PACKAGE_NAME=poppler-0.24.4
+URL=http://poppler.freedesktop.org/poppler-0.24.4.tar.xz
+LICENSE=CUSTOM:COPYING
