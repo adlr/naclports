@@ -48,7 +48,7 @@ index 77b8af3..dd19e9a 100644
  @BUILD_LIBTIFF_TRUE@libtiff_includes = $(LIBTIFF_CFLAGS)
  @BUILD_LIBOPENJPEG_TRUE@libjpeg2000_includes = $(LIBOPENJPEG_CFLAGS)
 diff --git a/cpp/poppler-document.cpp b/cpp/poppler-document.cpp
-index 1c24b47..0a948bd 100644
+index 1c24b47..c5bf4fd 100644
 --- a/cpp/poppler-document.cpp
 +++ b/cpp/poppler-document.cpp
 @@ -30,6 +30,7 @@
@@ -67,7 +67,7 @@ index 1c24b47..0a948bd 100644
          globalParams = new GlobalParams();
          setErrorCallback(detail::error_function, NULL);
      }
-@@ -662,3 +664,71 @@ document* document::load_from_raw_data(const char *file_data,
+@@ -662,3 +664,72 @@ document* document::load_from_raw_data(const char *file_data,
                                  owner_password, user_password);
      return document_private::check_document(doc, 0);
  }
@@ -75,6 +75,7 @@ index 1c24b47..0a948bd 100644
 +namespace poppler {
 +SimpleDocument::SimpleDocument(const char* buf, size_t length)
 +    : buf_copy_(new char[length]),
++      buf_len_(length),
 +      doc_(NULL), out_dev_(NULL), initer_(NULL) {
 +  initer_ = new initer();
 +  printf("about to do memcpy\n");
@@ -140,7 +141,7 @@ index 1c24b47..0a948bd 100644
 +
 +}  // namespace poppler
 diff --git a/cpp/poppler-document.h b/cpp/poppler-document.h
-index dfae398..17ca1fc 100644
+index dfae398..8612cb9 100644
 --- a/cpp/poppler-document.h
 +++ b/cpp/poppler-document.h
 @@ -19,9 +19,15 @@
@@ -159,7 +160,7 @@ index dfae398..17ca1fc 100644
  namespace poppler
  {
  
-@@ -99,6 +105,23 @@ private:
+@@ -99,6 +105,26 @@ private:
      friend class document_private;
  };
  
@@ -172,9 +173,12 @@ index dfae398..17ca1fc 100644
 +  // Uses PDF crop box:
 +  double GetPageWidth(int page);
 +  double GetPageHeight(int page);
++  const char* buf() const { return buf_copy_; }
++  size_t buf_len() const { return buf_len_; }
 +
 + private:
 +  char* buf_copy_;
++  size_t buf_len_;
 +  PDFDoc* doc_;
 +  CairoOutputDev* out_dev_;
 +  void* initer_;
