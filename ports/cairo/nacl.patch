@@ -24,3 +24,41 @@ index f27f8e4..76cc217 100644
  
      dot = strrchr (name, '.');
      if (dot)
+diff --git a/src/cairo-clip-boxes.c b/src/cairo-clip-boxes.c
+index bbb4197..7a78e53 100644
+--- a/src/cairo-clip-boxes.c
++++ b/src/cairo-clip-boxes.c
+@@ -172,11 +172,14 @@ _cairo_clip_intersect_rectangle_box (cairo_clip_t *clip,
+ 	if (clip->path == NULL) {
+ 	    clip->extents = *r;
+ 	} else {
+-	    if (! _cairo_rectangle_intersect (&clip->extents, r))
+-		clip = _cairo_clip_set_all_clipped (clip);
++	    if (! _cairo_rectangle_intersect (&clip->extents, r)) {
++		return _cairo_clip_set_all_clipped (clip);
++	    }
++	}
++	if (clip->path == NULL) {
++	    cairo_bool_t temp = _cairo_box_is_pixel_aligned (box);
++	    clip->is_region = temp;
+ 	}
+-	if (clip->path == NULL)
+-	    clip->is_region = _cairo_box_is_pixel_aligned (box);
+ 	return clip;
+     }
+ 
+@@ -312,10 +315,12 @@ _cairo_clip_intersect_boxes (cairo_clip_t *clip,
+     _cairo_boxes_extents (boxes, &limits);
+ 
+     _cairo_box_round_to_rectangle (&limits, &extents);
+-    if (clip->path == NULL)
++    if (clip->path == NULL) {
+ 	clip->extents = extents;
+-    else if (! _cairo_rectangle_intersect (&clip->extents, &extents))
++    } else if (! _cairo_rectangle_intersect (&clip->extents, &extents)) {
+ 	clip = _cairo_clip_set_all_clipped (clip);
++	goto out;
++    }
+ 
+     if (clip->region) {
+ 	cairo_region_destroy (clip->region);
