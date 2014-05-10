@@ -1,5 +1,5 @@
 diff --git a/configure b/configure
-index 81bf644..302c5e3 100755
+index 2e198c1..e6cd861 100755
 --- a/configure
 +++ b/configure
 @@ -17712,7 +17712,7 @@ if test "x$GXX" = "xyes"; then
@@ -48,7 +48,7 @@ index 77b8af3..dd19e9a 100644
  @BUILD_LIBTIFF_TRUE@libtiff_includes = $(LIBTIFF_CFLAGS)
  @BUILD_LIBOPENJPEG_TRUE@libjpeg2000_includes = $(LIBOPENJPEG_CFLAGS)
 diff --git a/cpp/poppler-document.cpp b/cpp/poppler-document.cpp
-index 1c24b47..c5bf4fd 100644
+index 1c24b47..732c252 100644
 --- a/cpp/poppler-document.cpp
 +++ b/cpp/poppler-document.cpp
 @@ -30,6 +30,7 @@
@@ -67,7 +67,7 @@ index 1c24b47..c5bf4fd 100644
          globalParams = new GlobalParams();
          setErrorCallback(detail::error_function, NULL);
      }
-@@ -662,3 +664,72 @@ document* document::load_from_raw_data(const char *file_data,
+@@ -662,3 +664,78 @@ document* document::load_from_raw_data(const char *file_data,
                                  owner_password, user_password);
      return document_private::check_document(doc, 0);
  }
@@ -132,10 +132,16 @@ index 1c24b47..c5bf4fd 100644
 +}
 +
 +double SimpleDocument::GetPageWidth(int page) {
++  int rotate = doc_->getPageRotate(page);
++  if (rotate == 90 || rotate == 270)
++    return doc_->getPageCropHeight(page);
 +  return doc_->getPageCropWidth(page);
 +}
 +
 +double SimpleDocument::GetPageHeight(int page) {
++  int rotate = doc_->getPageRotate(page);
++  if (rotate == 90 || rotate == 270)
++    return doc_->getPageCropWidth(page);
 +  return doc_->getPageCropHeight(page);
 +}
 +
