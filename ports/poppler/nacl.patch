@@ -12,7 +12,7 @@ index 2e198c1..e6cd861 100755
        esac
      ;;
 diff --git a/cpp/Makefile.am b/cpp/Makefile.am
-index f381e58..35f67e4 100644
+index f381e58..8d60e9d 100644
 --- a/cpp/Makefile.am
 +++ b/cpp/Makefile.am
 @@ -5,8 +5,14 @@ INCLUDES =					\
@@ -30,8 +30,16 @@ index f381e58..35f67e4 100644
  if BUILD_LIBJPEG
  libjpeg_includes = $(LIBJPEG_CFLAGS)
  endif
+@@ -67,6 +73,7 @@ libpoppler_cpp_la_CXXFLAGS =			\
+ 
+ libpoppler_cpp_la_LIBADD = 			\
+ 	$(top_builddir)/poppler/libpoppler.la	\
++	$(top_builddir)/poppler/libpoppler-cairo.la	\
+ 	$(LIBICONV)
+ 
+ libpoppler_cpp_la_LDFLAGS = -version-info 2:0:2 @create_shared_lib@ @auto_import_flags@
 diff --git a/cpp/Makefile.in b/cpp/Makefile.in
-index 77b8af3..dd19e9a 100644
+index 77b8af3..76c7005 100644
 --- a/cpp/Makefile.in
 +++ b/cpp/Makefile.in
 @@ -491,8 +491,12 @@ INCLUDES = \
@@ -47,6 +55,14 @@ index 77b8af3..dd19e9a 100644
  @BUILD_LIBJPEG_TRUE@libjpeg_includes = $(LIBJPEG_CFLAGS)
  @BUILD_LIBTIFF_TRUE@libtiff_includes = $(LIBTIFF_CFLAGS)
  @BUILD_LIBOPENJPEG_TRUE@libjpeg2000_includes = $(LIBOPENJPEG_CFLAGS)
+@@ -540,6 +544,7 @@ libpoppler_cpp_la_CXXFLAGS = \
+ 
+ libpoppler_cpp_la_LIBADD = \
+ 	$(top_builddir)/poppler/libpoppler.la	\
++	$(top_builddir)/poppler/libpoppler-cairo.la	\
+ 	$(LIBICONV)
+ 
+ libpoppler_cpp_la_LDFLAGS = -version-info 2:0:2 @create_shared_lib@ @auto_import_flags@
 diff --git a/cpp/poppler-document.cpp b/cpp/poppler-document.cpp
 index 1c24b47..732c252 100644
 --- a/cpp/poppler-document.cpp
@@ -271,28 +287,6 @@ index c620529..17d8ca1 100644
  //------------------------------------------------------------------------
  
  // A '1' in this array means the character is white space.  A '1' or
-diff --git a/poppler/Makefile.in b/poppler/Makefile.in
-index 56fdca1..79f78b1 100644
---- a/poppler/Makefile.in
-+++ b/poppler/Makefile.in
-@@ -533,7 +533,8 @@ win32_libs = @win32_libs@
- @BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_CFLAGS)
- 
- @BUILD_CAIRO_OUTPUT_TRUE@cairo_libs = \
--@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_LIBS)
-+@BUILD_CAIRO_OUTPUT_TRUE@	$(CAIRO_LIBS) \
-+@BUILD_CAIRO_OUTPUT_TRUE@	libpoppler-cairo.la
- 
- @BUILD_CAIRO_OUTPUT_TRUE@libpoppler_cairo_la_SOURCES = \
- @BUILD_CAIRO_OUTPUT_TRUE@	CairoFontEngine.cc			\
-@@ -623,6 +624,7 @@ libpoppler_la_LIBADD = \
- 	$(top_builddir)/fofi/libfofi.la		\
- 	$(cms_libs)				\
- 	$(splash_libs)				\
-+	$(cairo_libs)				\
- 	$(libtiff_libs)				\
- 	$(libjpeg_libs)				\
- 	$(libpng_libs)				\
 diff --git a/poppler/PDFDoc.cc b/poppler/PDFDoc.cc
 index c78d5ca..7c83593 100644
 --- a/poppler/PDFDoc.cc
