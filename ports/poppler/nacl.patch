@@ -210,7 +210,7 @@ index dfae398..8612cb9 100644
  
  #endif
 diff --git a/cpp/poppler-page-renderer.cpp b/cpp/poppler-page-renderer.cpp
-index 1317192..72b5a34 100644
+index 1317192..f665b94 100644
 --- a/cpp/poppler-page-renderer.cpp
 +++ b/cpp/poppler-page-renderer.cpp
 @@ -28,6 +28,9 @@
@@ -277,20 +277,20 @@ index 1317192..72b5a34 100644
 +    page_private *pp = page_private::get(p);
 +    PDFDoc *pdfdoc = pp->doc->doc;
 +
-+    if (!d->cairo_output_dev_) {
-+        d->cairo_output_dev_ = new CairoOutputDev();
-+        d->cairo_output_dev_->startDoc(pdfdoc);
++    if (!d->cairo_output_dev) {
++        d->cairo_output_dev = new CairoOutputDev();
++        d->cairo_output_dev->startDoc(pdfdoc);
 +    }
-+    d->cairo_output_dev_->setCairo(cr);
-+    d->cairo_output_dev_->setPrinting(printing);
++    d->cairo_output_dev->setCairo(cr);
++    d->cairo_output_dev->setPrinting(printing);
 +
 +    cairo_save(cr);
-+    pdfdoc->displayPageSlice(d->cairo_output_dev_, pp->index + 1,
++    pdfdoc->displayPageSlice(d->cairo_output_dev, pp->index + 1,
 +                             xres, yres, int(rotate) * 90,
 +                             gFalse, gTrue, printing,
 +                             x, y, w, h);
 +    cairo_restore(cr);
-+    cairo_output_dev_->setCairo(NULL);
++    d->cairo_output_dev->setCairo(NULL);
 +}
 +#endif  // HAVE_CAIRO
 +
@@ -298,10 +298,23 @@ index 1317192..72b5a34 100644
   Rendering capability test.
  
 diff --git a/cpp/poppler-page-renderer.h b/cpp/poppler-page-renderer.h
-index 1383865..2894b69 100644
+index 1383865..ab4da92 100644
 --- a/cpp/poppler-page-renderer.h
 +++ b/cpp/poppler-page-renderer.h
-@@ -53,6 +53,13 @@ public:
+@@ -19,6 +19,12 @@
+ #ifndef POPPLER_PAGE_RENDERER_H
+ #define POPPLER_PAGE_RENDERER_H
+ 
++#include <config.h>
++
++#ifdef HAVE_CAIRO
++#include <cairo.h>
++#endif  // HAVE_CAIRO
++
+ #include "poppler-global.h"
+ #include "poppler-image.h"
+ 
+@@ -53,6 +59,13 @@ public:
                        double xres = 72.0, double yres = 72.0,
                        int x = -1, int y = -1, int w = -1, int h = -1,
                        rotation_enum rotate = rotate_0) const;
@@ -310,7 +323,7 @@ index 1383865..2894b69 100644
 +                           bool printing,
 +                           double xres = 72.0, double yres = 72.0,
 +                           int x = -1, int y = -1, int w = -1, int h = -1,
-+                           rotation_enum rotate = rotate_0) const;
++                           rotation_enum rotate = rotate_0);
 +#endif  // HAVE_CAIRO
  
      static bool can_render();
