@@ -210,7 +210,7 @@ index dfae398..8612cb9 100644
  
  #endif
 diff --git a/cpp/poppler-page-renderer.cpp b/cpp/poppler-page-renderer.cpp
-index 1317192..f665b94 100644
+index 1317192..acfa792 100644
 --- a/cpp/poppler-page-renderer.cpp
 +++ b/cpp/poppler-page-renderer.cpp
 @@ -28,6 +28,9 @@
@@ -241,12 +241,10 @@ index 1317192..f665b94 100644
  };
  
  
-@@ -194,6 +203,55 @@ image page_renderer::render_page(const page *p,
- #endif
+@@ -195,6 +204,61 @@ image page_renderer::render_page(const page *p,
  }
  
-+#ifdef HAVE_CAIRO
-+/**
+ /**
 + Render the specified page to the given cairo_t.
 +
 + This functions renders the specified page on an image following the specified
@@ -264,16 +262,20 @@ index 1317192..f665b94 100644
 +
 + \see render_page
 + */
-+void page_renderer::cairo_render_page(cairo_t* cr, const page *p,
++void page_renderer::cairo_render_page(void* cr, const page *p,
 +                                      bool printing,
 +                                      double xres, double yres,
 +                                      int x, int y, int w, int h,
 +                                      rotation_enum rotate)
 +{
++    printf("called cairo_render_page\n");
++#ifdef HAVE_CAIRO
 +    if (!p) {
++        printf("missing page in cairo render\n");
 +        return;
 +    }
 +
++    cairo_t* typed_cr = reinterpret_cast<cairo_t*>(cr);
 +    page_private *pp = page_private::get(p);
 +    PDFDoc *pdfdoc = pp->doc->doc;
 +
@@ -281,50 +283,39 @@ index 1317192..f665b94 100644
 +        d->cairo_output_dev = new CairoOutputDev();
 +        d->cairo_output_dev->startDoc(pdfdoc);
 +    }
-+    d->cairo_output_dev->setCairo(cr);
++    d->cairo_output_dev->setCairo(typed_cr);
 +    d->cairo_output_dev->setPrinting(printing);
 +
-+    cairo_save(cr);
++    cairo_save(typed_cr);
++    printf("calling display page slice for page %d (1 idx)\n", pp->index + 1);
 +    pdfdoc->displayPageSlice(d->cairo_output_dev, pp->index + 1,
 +                             xres, yres, int(rotate) * 90,
 +                             gFalse, gTrue, printing,
 +                             x, y, w, h);
-+    cairo_restore(cr);
++    cairo_restore(typed_cr);
 +    d->cairo_output_dev->setCairo(NULL);
-+}
++#else
++    printf("MISSING CAIRO IN POPPLER!\n");
 +#endif  // HAVE_CAIRO
++}
 +
- /**
++/**
   Rendering capability test.
  
+  page_renderer can render only if a render backend ('Splash') is compiled in
 diff --git a/cpp/poppler-page-renderer.h b/cpp/poppler-page-renderer.h
-index 1383865..ab4da92 100644
+index 1383865..f38be43 100644
 --- a/cpp/poppler-page-renderer.h
 +++ b/cpp/poppler-page-renderer.h
-@@ -19,6 +19,12 @@
- #ifndef POPPLER_PAGE_RENDERER_H
- #define POPPLER_PAGE_RENDERER_H
- 
-+#include <config.h>
-+
-+#ifdef HAVE_CAIRO
-+#include <cairo.h>
-+#endif  // HAVE_CAIRO
-+
- #include "poppler-global.h"
- #include "poppler-image.h"
- 
-@@ -53,6 +59,13 @@ public:
+@@ -53,6 +53,11 @@ public:
                        double xres = 72.0, double yres = 72.0,
                        int x = -1, int y = -1, int w = -1, int h = -1,
                        rotation_enum rotate = rotate_0) const;
-+#ifdef HAVE_CAIRO
-+    void cairo_render_page(cairo_t* cr, const page *p,
++    void cairo_render_page(void* cr, const page *p,
 +                           bool printing,
 +                           double xres = 72.0, double yres = 72.0,
 +                           int x = -1, int y = -1, int w = -1, int h = -1,
 +                           rotation_enum rotate = rotate_0);
-+#endif  // HAVE_CAIRO
  
      static bool can_render();
  
