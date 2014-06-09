@@ -1,0 +1,117 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index b55b28d..3a84be6 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -210,7 +210,7 @@ ADD_CUSTOM_TARGET(uninstall "${CMAKE_COMMAND}"
+     -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+ 
+ # Check if we are big endian
+-TEST_BIG_ENDIAN(TEST_BIG)
++#TEST_BIG_ENDIAN(TEST_BIG)
+ 
+ IF(WIN32)
+     # On win32 we support EITHER shared OR static builds.
+@@ -388,6 +388,7 @@ IF(USE_STLPORT)
+ ENDIF(USE_STLPORT)
+ 
+ IF(WANT_FONTCONFIG)
++	FIND_PACKAGE(EXPAT REQUIRED)
+ 	FIND_PACKAGE(FONTCONFIG REQUIRED)
+ 	SET(PODOFO_HAVE_FONTCONFIG TRUE)
+ 	SET(PODOFO_LIB_FONTCONFIG:STRING fontconfig)
+@@ -493,7 +494,7 @@ SET(PODOFO_LIB_DEPENDS
+   )
+ 
+ IF(FONTCONFIG_FOUND AND WANT_FONTCONFIG)
+-  SET(PODOFO_LIB_DEPENDS ${FONTCONFIG_LIBRARIES} ${PODOFO_LIB_DEPENDS})
++  SET(PODOFO_LIB_DEPENDS ${FONTCONFIG_LIBRARIES} ${EXPAT_LIBRARIES} ${PODOFO_LIB_DEPENDS})
+   INCLUDE_DIRECTORIES(${FONTCONFIG_INCLUDE_DIR})
+ ENDIF(FONTCONFIG_FOUND AND WANT_FONTCONFIG)
+ 
+diff --git a/src/base/PdfCompilerCompatPrivate.h b/src/base/PdfCompilerCompatPrivate.h
+index 36fcb58..347357c 100644
+--- a/src/base/PdfCompilerCompatPrivate.h
++++ b/src/base/PdfCompilerCompatPrivate.h
+@@ -128,6 +128,12 @@ inline static double logb(double x) {
+ inline static pdf_uint32 podofo_ntohl(pdf_uint32 i) {
+ #if defined(_WIN32) && defined(_MSC_VER)
+    return (pdf_uint32)( ntohl( i ) );
++#elif defined (__native_client__)
++   // Assume host is little endian
++   return (i << 24) |
++       ((i << 8) & 0xff0000) |
++       ((i >> 8) * 0xff00) |
++       (i >> 24);
+ #else
+    return static_cast<pdf_uint32>( ntohl( i ) );
+ #endif // _WIN32
+@@ -136,6 +142,9 @@ inline static pdf_uint32 podofo_ntohl(pdf_uint32 i) {
+ inline static pdf_uint16 podofo_ntohs(pdf_uint16 i) {
+ #if defined(_WIN32) && defined(_MSC_VER)
+    return (pdf_uint16)( ntohs( i ) );
++#elif defined (__native_client__)
++   // Assume host is little endian
++   return (i << 8) | (i >> 8);
+ #else
+    return static_cast<pdf_uint16>( ntohs( i ) );
+ #endif // _WIN32
+@@ -144,6 +153,12 @@ inline static pdf_uint16 podofo_ntohs(pdf_uint16 i) {
+ inline static pdf_uint32 podofo_htonl(pdf_uint32 i) {
+ #if defined(_WIN32) && defined(_MSC_VER)
+     return (pdf_uint32)( htonl( i ) );
++#elif defined (__native_client__)
++   // Assume host is little endian
++   return (i << 24) |
++       ((i << 8) & 0xff0000) |
++       ((i >> 8) * 0xff00) |
++       (i >> 24);
+ #else
+     return static_cast<pdf_uint32>( htonl( i ) );
+ #endif // _WIN32
+@@ -152,6 +167,9 @@ inline static pdf_uint32 podofo_htonl(pdf_uint32 i) {
+ inline static pdf_uint16 podofo_htons(pdf_uint16 i) {
+ #if defined(_WIN32) && defined(_MSC_VER)
+     return (pdf_uint16)( htons( i ) );
++#elif defined (__native_client__)
++   // Assume host is little endian
++   return (i << 8) | (i >> 8);
+ #else
+     return static_cast<pdf_uint16>( htons( i ) );
+ #endif // _WIN32
+diff --git a/src/base/PdfDefines.h b/src/base/PdfDefines.h
+index f4cff17..20a28bd 100644
+--- a/src/base/PdfDefines.h
++++ b/src/base/PdfDefines.h
+@@ -112,6 +112,7 @@
+ // your STL probably writes all data in a POSIX-like way irrespective of
+ // locale. If you set this to 0, you MUST use some other method to ensure
+ // that streams used by PoDoFo will write data in a POSIX locale like manner.
++#define USE_CXX_LOCALE 0
+ #ifndef USE_CXX_LOCALE
+ #define USE_CXX_LOCALE 1
+ #endif
+diff --git a/src/base/PdfInputDevice.h b/src/base/PdfInputDevice.h
+index ade4ff2..a804e8a 100644
+--- a/src/base/PdfInputDevice.h
++++ b/src/base/PdfInputDevice.h
+@@ -22,6 +22,7 @@
+ #define _PDF_INPUT_DEVICE_H_
+ 
+ #include <istream>
++#include <ios>
+ 
+ #include "PdfDefines.h"
+ #include "PdfLocale.h"
+diff --git a/src/base/PdfLocale.h b/src/base/PdfLocale.h
+index 726d5cf..7268365 100644
+--- a/src/base/PdfLocale.h
++++ b/src/base/PdfLocale.h
+@@ -1,7 +1,7 @@
+ #ifndef PODOFO_PDFLOCALE_H
+ #define PODOFO_PDFLOCALE_H
+ 
+-namespace std { class ios_base; };
++#include <ios>
+ 
+ namespace PoDoFo {
+ 
