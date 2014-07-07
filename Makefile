@@ -267,7 +267,7 @@ ifeq ($(LUA_NO_READLINE),)
 $(SENT)/ports/lua5.1: ports/readline
 $(SENT)/ports/lua5.2: ports/readline
 endif
-$(SENT)/ports/podofo: ports/openssl
+$(SENT)/ports/podofo: ports/openssl ports/jpeg8d
 $(SENT)/ports/poppler: ports/fontconfig ports/cairo
 $(SENT)/ports/python: ports/readline ports/zlib
 $(SENT)/ports/python3: ports/readline ports/zlib
