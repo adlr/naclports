@@ -1,0 +1,227 @@
+diff --git a/configure b/configure
+index 0b5db82..05439f0 100755
+--- a/configure
++++ b/configure
+@@ -13967,7 +13967,7 @@ cat >>confdefs.h <<_ACEOF
+ #define HAVE_POSIX_FADVISE $fc_func_posix_fadvise
+ _ACEOF
+ 
+-if test "$os_win32" = "no"; then
++if test "$os_win32" = "yes"; then
+ 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for scandir" >&5
+ $as_echo_n "checking for scandir... " >&6; }
+ 	fc_saved_CFLAGS="$CFLAGS"
+diff --git a/src/fccache.c b/src/fccache.c
+index 5173e0b..0085058 100644
+--- a/src/fccache.c
++++ b/src/fccache.c
+@@ -188,14 +188,18 @@ FcDirCacheProcess (FcConfig *config, const FcChar8 *dir,
+     struct stat file_stat, dir_stat;
+     FcBool	ret = FcFalse;
+ 
+-    if (FcStatChecksum (dir, &dir_stat) < 0)
++    if (FcStatChecksum (dir, &dir_stat) < 0) {
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+         return FcFalse;
++    }
+ 
+     FcDirCacheBasename (dir, cache_base);
+ 
+     list = FcStrListCreate (config->cacheDirs);
+-    if (!list)
++    if (!list) {
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+         return FcFalse;
++    }
+ 	
+     while ((cache_dir = FcStrListNext (list)))
+     {
+@@ -225,6 +229,7 @@ FcDirCacheProcess (FcConfig *config, const FcChar8 *dir,
+     }
+     FcStrListDone (list);
+ 
++    fprintf(stderr, "exited here (%d) %s:%d\n", ret, __FILE__, __LINE__);
+     return ret;
+ }
+ 
+@@ -725,8 +730,10 @@ FcDirCacheValid (const FcChar8 *dir)
+     FcConfig	*config;
+ 
+     config = FcConfigGetCurrent ();
+-    if (!config)
++    if (!config) {
++        fprintf(stderr, "no current config in %s\n", __func__);
+         return FcFalse;
++    }
+ 
+     return FcDirCacheValidConfig (dir, config);
+ }
+diff --git a/src/fccfg.c b/src/fccfg.c
+index 6377fd7..b9d4a12 100644
+--- a/src/fccfg.c
++++ b/src/fccfg.c
+@@ -1831,7 +1831,7 @@ DllMain (HINSTANCE hinstDLL,
+ #endif /* !_WIN32 */
+ 
+ #ifndef FONTCONFIG_FILE
+-#define FONTCONFIG_FILE	"fonts.conf"
++#define FONTCONFIG_FILE	"/etc/fonts/fonts.conf"
+ #endif
+ 
+ static FcChar8 *
+@@ -1892,6 +1892,7 @@ FcConfigGetPath (void)
+     env = (FcChar8 *) getenv ("FONTCONFIG_PATH");
+     if (env)
+     {
++        fprintf(stderr, "got env path for FONTCONFIG_PATH: %s\n", (char*)env);
+ 	e = env;
+ 	npath++;
+ 	while (*e)
+@@ -1935,11 +1936,12 @@ FcConfigGetPath (void)
+ 		strcat ((char *) fontconfig_path, "\\fonts");
+ 	}
+ #endif
+-    dir = (FcChar8 *) FONTCONFIG_PATH;
++    dir = (FcChar8 *) "/etc/fonts/";
+     path[i] = malloc (strlen ((char *) dir) + 1);
+     if (!path[i])
+ 	goto bail1;
+     strcpy ((char *) path[i], (const char *) dir);
++    fprintf(stderr, "returning paths. last one: %s\n", (char*)path[i]);
+     return path;
+ 
+ bail1:
+@@ -1947,6 +1949,7 @@ bail1:
+ 	free (path[i]);
+     free (path);
+ bail0:
++    fprintf(stderr, "returning paths. NULL\n");
+     return 0;
+ }
+ 
+@@ -2099,10 +2102,14 @@ FcConfigFilename (const FcChar8 *url)
+ 	break;
+     default:
+ 	path = FcConfigGetPath ();
+-	if (!path)
++        fprintf(stderr, "got paths:\n");
++	if (!path) {
++            fprintf(stderr, "FcConfigGetPath returning NULL\n");
+ 	    return NULL;
++        }
+ 	for (p = path; *p; p++)
+ 	{
++            fprintf(stderr, "got path: %s\n", (char*)*p);
+ 	    file = FcConfigFileExists (*p, url);
+ 	    if (file)
+ 		break;
+diff --git a/src/fcstat.c b/src/fcstat.c
+index 0a88097..6a76c2a 100644
+--- a/src/fcstat.c
++++ b/src/fcstat.c
+@@ -191,6 +191,7 @@ FcDirChecksum (const FcChar8 *dir, time_t *checksum)
+ 
+     Adler32Init (&ctx);
+ 
++    /*
+     n = scandir ((const char *)dir, &files,
+ #ifdef HAVE_STRUCT_DIRENT_D_TYPE
+ 		 &FcDirChecksumScandirFilter,
+@@ -198,7 +199,7 @@ FcDirChecksum (const FcChar8 *dir, time_t *checksum)
+ 		 NULL,
+ #endif
+ 		 &FcDirChecksumScandirSorter);
+-    if (n == -1)
++                 if (n == -1)*/
+ 	return -1;
+ 
+     while (n--)
+diff --git a/src/fcstdint.h b/src/fcstdint.h
+index 2cbe49f..b7f8791 100644
+--- a/src/fcstdint.h
++++ b/src/fcstdint.h
+@@ -2,7 +2,7 @@
+ #define _FONTCONFIG_SRC_FCSTDINT_H 1
+ #ifndef _GENERATED_STDINT_H
+ #define _GENERATED_STDINT_H "fontconfig 2.11.1"
+-/* generated using gnu compiler gcc (GCC) 4.8.2 20131212 (Red Hat 4.8.2-7) */
++/* generated using gnu compiler gcc (Ubuntu/Linaro 4.6.3-1ubuntu5) 4.6.3 */
+ #define _STDINT_HAVE_STDINT_H 1
+ #include <stdint.h>
+ #endif
+diff --git a/src/fcxml.c b/src/fcxml.c
+index 91d166f..7b1829b 100644
+--- a/src/fcxml.c
++++ b/src/fcxml.c
+@@ -3099,8 +3099,11 @@ FcConfigParseAndLoad (FcConfig	    *config,
+ #endif
+ 
+     filename = FcConfigFilename (name);
+-    if (!filename)
++    if (!filename) {
++        fprintf(stderr, "no filename for %s\n", name ? (char*)name : "<NULL>");
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	goto bail0;
++    }
+ 
+     if (FcStrSetMember (config->configFiles, filename))
+     {
+@@ -3111,6 +3114,7 @@ FcConfigParseAndLoad (FcConfig	    *config,
+     if (!FcStrSetAdd (config->configFiles, filename))
+     {
+ 	FcStrFree (filename);
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	goto bail0;
+     }
+ 
+@@ -3127,6 +3131,8 @@ FcConfigParseAndLoad (FcConfig	    *config,
+     fd = FcOpen ((char *) filename, O_RDONLY);
+     if (fd == -1) {
+ 	FcStrFree (filename);
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
++        fprintf(stderr, "on open %s\n", filename ? (char*)filename : "<NULL>");
+ 	goto bail0;
+     }
+ 
+@@ -3145,11 +3151,15 @@ FcConfigParseAndLoad (FcConfig	    *config,
+ #endif
+     FcStrFree (filename);
+ 
+-    if (!p)
++    if (!p){
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	goto bail1;
++    }
+ 
+-    if (!FcConfigParseInit (&parse, name, config, p))
++    if (!FcConfigParseInit (&parse, name, config, p)) {
++        fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	goto bail2;
++    }
+ 
+ #ifndef ENABLE_LIBXML2
+ 
+@@ -3167,6 +3177,7 @@ FcConfigParseAndLoad (FcConfig	    *config,
+ 	if (!buf)
+ 	{
+ 	    FcConfigMessage (&parse, FcSevereError, "cannot get parse buffer");
++            fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	    goto bail3;
+ 	}
+ #endif
+@@ -3174,6 +3185,7 @@ FcConfigParseAndLoad (FcConfig	    *config,
+ 	if (len < 0)
+ 	{
+ 	    FcConfigMessage (&parse, FcSevereError, "failed reading config file");
++            fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	    goto bail3;
+ 	}
+ 
+@@ -3185,6 +3197,7 @@ FcConfigParseAndLoad (FcConfig	    *config,
+ 	{
+ 	    FcConfigMessage (&parse, FcSevereError, "%s",
+ 			   XML_ErrorString (XML_GetErrorCode (p)));
++            fprintf(stderr, "bailed here %s:%d\n", __FILE__, __LINE__);
+ 	    goto bail3;
+ 	}
+     } while (len != 0);
