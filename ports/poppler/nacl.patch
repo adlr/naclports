@@ -210,7 +210,7 @@ index dfae398..8612cb9 100644
  
  #endif
 diff --git a/cpp/poppler-page-renderer.cpp b/cpp/poppler-page-renderer.cpp
-index 1317192..acfa792 100644
+index 1317192..e5f1e21 100644
 --- a/cpp/poppler-page-renderer.cpp
 +++ b/cpp/poppler-page-renderer.cpp
 @@ -28,6 +28,9 @@
@@ -241,7 +241,7 @@ index 1317192..acfa792 100644
  };
  
  
-@@ -195,6 +204,61 @@ image page_renderer::render_page(const page *p,
+@@ -195,6 +204,59 @@ image page_renderer::render_page(const page *p,
  }
  
  /**
@@ -268,7 +268,6 @@ index 1317192..acfa792 100644
 +                                      int x, int y, int w, int h,
 +                                      rotation_enum rotate)
 +{
-+    printf("called cairo_render_page\n");
 +#ifdef HAVE_CAIRO
 +    if (!p) {
 +        printf("missing page in cairo render\n");
@@ -287,7 +286,6 @@ index 1317192..acfa792 100644
 +    d->cairo_output_dev->setPrinting(printing);
 +
 +    cairo_save(typed_cr);
-+    printf("calling display page slice for page %d (1 idx)\n", pp->index + 1);
 +    pdfdoc->displayPageSlice(d->cairo_output_dev, pp->index + 1,
 +                             xres, yres, int(rotate) * 90,
 +                             gFalse, gTrue, printing,
@@ -365,23 +363,6 @@ index 44beddd..e85a094 100644
  #ifdef VMS
    needParent = strchr(path->getCString(), '[') != NULL;
  #endif
-diff --git a/poppler/CairoOutputDev.cc b/poppler/CairoOutputDev.cc
-index 77bd245..6b295f2 100644
---- a/poppler/CairoOutputDev.cc
-+++ b/poppler/CairoOutputDev.cc
-@@ -161,10 +161,12 @@ CairoOutputDev::CairoOutputDev() {
- 
-   // the SA parameter supposedly defaults to false, but Acrobat
-   // apparently hardwires it to true
-+  printf("getting stroke adjust: 0x%zx\n", (size_t)globalParams);
-   stroke_adjust = globalParams->getStrokeAdjust();
-   align_stroke_coords = gFalse;
-   adjusted_stroke_width = gFalse;
-   xref = NULL;
-+  printf("ctor done\n");
- }
- 
- CairoOutputDev::~CairoOutputDev() {
 diff --git a/poppler/Lexer.cc b/poppler/Lexer.cc
 index c620529..17d8ca1 100644
 --- a/poppler/Lexer.cc
